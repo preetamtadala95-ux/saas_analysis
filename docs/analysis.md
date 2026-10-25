@@ -36,7 +36,7 @@ ORDER BY revenue_month;
 
 ### Key Insight
 
-Monthly billed revenue establishes the baseline for understanding the company's financial performance and provides the foundation for evaluating revenue growth.
+Monthly billed revenue increased substantially over the analysis period, establishing a strong overall growth trend.
 
 ---
 
@@ -249,7 +249,7 @@ FROM (
 
 ### Key Insight
 
-Customer retention differs across segments. Comparing active-customer percentages helps identify which customer groups have stronger ongoing engagement and which segments require greater retention attention.
+Mid-market has the strongest active-customer percentage, while SMB has the largest customer base and therefore represents the largest pool of customers requiring retention attention.
 
 ---
 
@@ -307,14 +307,14 @@ Cancellation rate identifies the customer segments experiencing the greatest sub
 
 ### Business Question
 
-How long do customers remain subscribed, and how does duration differ between active and cancelled subscriptions?
+How long do customers remain subscribed, and how does duration differ between active and cancelled customers?
 
 ### Business Approach
 
 Use `DATEDIFF()` to calculate subscription duration.
 
 - Cancelled subscriptions: `ended_at - started_at`
-- Active subscriptions: current date - `started_at`
+- Active subscriptions: `current date - started_at`
 
 ### Key Metrics
 
@@ -357,9 +357,9 @@ ORDER BY
 
 ### Key Insight
 
-Active customers have substantially longer observed subscription durations than cancelled customers. This provides lifecycle context for understanding customer behavior.
+Active customers have substantially longer observed subscription durations than cancelled customers across every segment. Cancelled subscriptions average roughly 344–358 days, while active subscriptions average more than 830 days.
 
-The comparison should be interpreted carefully because active subscriptions continue accumulating days, while cancelled subscriptions stop accumulating duration at their cancellation date.
+This should be interpreted carefully because active customers continue accumulating subscription days while cancelled customers stop at their cancellation date.
 
 ---
 
@@ -409,7 +409,7 @@ FROM revenue_collection;
 
 ### Key Insight
 
-The business collected approximately 93.67% of billed revenue, leaving approximately 6.33% outstanding. This highlights the gap between revenue billed and revenue actually collected.
+The business collected approximately 93.67% of billed revenue, leaving approximately 6.33% outstanding. This highlights the gap between revenue billed and cash actually collected.
 
 ---
 
@@ -463,5 +463,5 @@ ORDER BY channel_mrr DESC;
 
 ### Key Insight
 
-MRR is distributed relatively evenly across acquisition channels. No single channel dominates the revenue base, reducing dependence on one acquisition source.
+MRR is distributed relatively evenly across acquisition channels. Partner contributes the highest share at approximately 21%, while outbound contributes approximately 18.7%. No single channel dominates the revenue base, reducing dependence on one acquisition source.
 
