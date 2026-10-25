@@ -36,7 +36,7 @@ ORDER BY revenue_month;
 
 ### Key Insight
 
-Monthly billed revenue increased substantially over the analysis period, establishing a strong overall growth trend.
+Monthly billed revenue establishes the baseline for understanding the company's financial performance and provides the foundation for evaluating revenue growth.
 
 ---
 
@@ -99,11 +99,11 @@ MoM growth provides a more actionable view of revenue momentum than absolute rev
 
 ### Business Question
 
-Which customer segments generate the most MRR, and how does customer value differ across segments?
+Which customer segments generate the most MRR, and how much MRR does the average customer generate within each segment?
 
 ### Business Approach
 
-Join accounts with subscriptions and aggregate customer count, total MRR, and average MRR by segment.
+First aggregate MRR at the customer level to ensure each customer is represented once. Then summarize customer count, total MRR, and average MRR per customer by segment.
 
 ### Key Metrics
 
@@ -114,21 +114,32 @@ Join accounts with subscriptions and aggregate customer count, total MRR, and av
 ### SQL
 
 ```sql
+WITH customer_mrr AS (
+    SELECT
+        a.account_id,
+        a.segment,
+        SUM(s.mrr) AS customer_mrr
+    FROM accounts a
+    JOIN subscriptions s
+        ON a.account_id = s.account_id
+    GROUP BY
+        a.account_id,
+        a.segment
+)
+
 SELECT
-    a.segment,
-    COUNT(a.account_id) AS customers,
-    SUM(s.mrr) AS total_mrr,
-    ROUND(AVG(s.mrr), 2) AS avg_mrr
-FROM accounts a
-JOIN subscriptions s
-    ON a.account_id = s.account_id
-GROUP BY a.segment
+    segment,
+    COUNT(account_id) AS customers,
+    SUM(customer_mrr) AS total_mrr,
+    ROUND(AVG(customer_mrr), 2) AS avg_mrr_per_customer
+FROM customer_mrr
+GROUP BY segment
 ORDER BY total_mrr DESC;
 ```
 
 ### Key Insight
 
-The segments differ significantly in economic value. Mid-market generates the highest total MRR, while enterprise customers generate substantially higher MRR per customer.
+This analysis distinguishes between segment size and customer value. A segment may generate high total MRR because it has more customers, while another may generate higher MRR per individual customer.
 
 ---
 
@@ -140,7 +151,7 @@ Which subscription plans are customers adopting, and what percentage of customer
 
 ### Business Approach
 
-Count customers by plan and use a window function to calculate each plan's share of the total customer base.
+Count distinct customers associated with each plan and compare each plan's customer count with the overall customer base.
 
 ### Key Metrics
 
@@ -165,7 +176,7 @@ total_customers AS (
     SELECT
         plan_name,
         customers,
-        SUM(customers) OVER () AS total_cust
+        SUM(customers) OVER () AS total_customers
     FROM plan_adoption
 )
 
@@ -173,7 +184,7 @@ SELECT
     plan_name,
     customers,
     ROUND(
-        (customers / total_cust) * 100,
+        (customers / total_customers) * 100,
         2
     ) AS percentage_of_customers
 FROM total_customers
@@ -182,7 +193,7 @@ ORDER BY percentage_of_customers DESC;
 
 ### Key Insight
 
-Starter is the dominant plan, representing nearly half of the customer base, while Enterprise represents a much smaller portion of customers.
+Plan adoption reveals which subscription offerings are most widely used and helps management understand customer preference across the SaaS product portfolio.
 
 ---
 
@@ -194,7 +205,7 @@ How does customer retention differ across customer segments?
 
 ### Business Approach
 
-Calculate total customers and active customers by segment, then derive active and non-active customer percentages.
+Calculate distinct customers and distinct active customers within each segment, then derive the active customer percentage.
 
 ### Key Metrics
 
@@ -224,8 +235,9 @@ FROM (
         a.segment,
         COUNT(DISTINCT a.account_id) AS total_customers,
         COUNT(
-            CASE
-                WHEN s.status = 'active' THEN 1
+            DISTINCT CASE
+                WHEN s.status = 'active'
+                    THEN a.account_id
             END
         ) AS active_customers
     FROM accounts a
@@ -237,7 +249,7 @@ FROM (
 
 ### Key Insight
 
-Mid-market has the strongest active-customer percentage, while SMB has the largest customer base and therefore represents the largest pool of customers requiring retention attention.
+Customer retention differs across segments. Comparing active-customer percentages helps identify which customer groups have stronger ongoing engagement and which segments require greater retention attention.
 
 ---
 
@@ -249,12 +261,12 @@ Which customer segments have the highest subscription cancellation rate?
 
 ### Business Approach
 
-Count cancelled subscriptions by segment and calculate cancellations as a percentage of the segment's customer base.
+Calculate the number of cancelled subscriptions against the total number of subscriptions within each segment.
 
 ### Key Metrics
 
-- Total customers
-- Cancelled customers
+- Total subscriptions
+- Cancelled subscriptions
 - Cancellation %
 
 ### SQL
@@ -262,21 +274,22 @@ Count cancelled subscriptions by segment and calculate cancellations as a percen
 ```sql
 SELECT
     x.segment,
-    x.total_customers,
-    x.cancelled_customers,
+    x.total_subscriptions,
+    x.cancelled_subscriptions,
     ROUND(
-        (x.cancelled_customers / x.total_customers) * 100,
+        (x.cancelled_subscriptions / x.total_subscriptions) * 100,
         2
     ) AS cancellation_percentage
 FROM (
     SELECT
         a.segment,
-        COUNT(a.account_id) AS total_customers,
+        COUNT(s.subscription_id) AS total_subscriptions,
         COUNT(
             CASE
-                WHEN s.status = 'cancelled' THEN 1
+                WHEN s.status = 'cancelled'
+                    THEN s.subscription_id
             END
-        ) AS cancelled_customers
+        ) AS cancelled_subscriptions
     FROM accounts a
     JOIN subscriptions s
         ON s.account_id = a.account_id
@@ -286,7 +299,7 @@ FROM (
 
 ### Key Insight
 
-SMB has the highest cancellation rate, while mid-market has the lowest. This identifies SMB as the segment with the greatest cancellation exposure.
+Cancellation rate identifies the customer segments experiencing the greatest subscription loss and provides a direct measure of churn exposure.
 
 ---
 
@@ -294,14 +307,14 @@ SMB has the highest cancellation rate, while mid-market has the lowest. This ide
 
 ### Business Question
 
-How long do customers remain subscribed, and how does duration differ between active and cancelled customers?
+How long do customers remain subscribed, and how does duration differ between active and cancelled subscriptions?
 
 ### Business Approach
 
 Use `DATEDIFF()` to calculate subscription duration.
 
 - Cancelled subscriptions: `ended_at - started_at`
-- Active subscriptions: `current date - started_at`
+- Active subscriptions: current date - `started_at`
 
 ### Key Metrics
 
@@ -344,9 +357,9 @@ ORDER BY
 
 ### Key Insight
 
-Active customers have substantially longer observed subscription durations than cancelled customers across every segment. Cancelled subscriptions average roughly 344–358 days, while active subscriptions average more than 830 days.
+Active customers have substantially longer observed subscription durations than cancelled customers. This provides lifecycle context for understanding customer behavior.
 
-This should be interpreted carefully because active customers continue accumulating subscription days while cancelled customers stop at their cancellation date.
+The comparison should be interpreted carefully because active subscriptions continue accumulating days, while cancelled subscriptions stop accumulating duration at their cancellation date.
 
 ---
 
@@ -396,7 +409,7 @@ FROM revenue_collection;
 
 ### Key Insight
 
-The business collected approximately 93.67% of billed revenue, leaving approximately 6.33% outstanding. This highlights the gap between revenue billed and cash actually collected.
+The business collected approximately 93.67% of billed revenue, leaving approximately 6.33% outstanding. This highlights the gap between revenue billed and revenue actually collected.
 
 ---
 
@@ -450,5 +463,5 @@ ORDER BY channel_mrr DESC;
 
 ### Key Insight
 
-MRR is distributed relatively evenly across acquisition channels. Partner contributes the highest share at approximately 21%, while outbound contributes approximately 18.7%. No single channel dominates the revenue base, reducing dependence on one acquisition source.
+MRR is distributed relatively evenly across acquisition channels. No single channel dominates the revenue base, reducing dependence on one acquisition source.
 
