@@ -154,7 +154,7 @@ Count customers by plan and use a window function to calculate each plan's share
 WITH plan_adoption AS (
     SELECT
         p.plan_name,
-        COUNT(s.account_id) AS customers
+        COUNT(DISTINCT s.account_id) AS customers
     FROM subscriptions s
     JOIN plans p
         ON s.plan_id = p.plan_id
@@ -222,7 +222,7 @@ SELECT
 FROM (
     SELECT
         a.segment,
-        COUNT(a.account_id) AS total_customers,
+        COUNT(DISTINCT a.account_id) AS total_customers,
         COUNT(
             CASE
                 WHEN s.status = 'active' THEN 1
